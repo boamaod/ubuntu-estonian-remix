@@ -3,8 +3,7 @@
 #debug options
 set -x
 PS4='Line ${LINENO}: '
-#logfile=makeRemix_64bit.log 
-#exec > $logfile 2>&1
+
 #
 # Ubuntu - Estonian Remix ISO
 #
@@ -19,7 +18,7 @@ export LC_ALL=C.UTF-8
 
 
 #what release we're working on -> defined below automatically after defining necessary variables
-#export RELEASE="xenial"
+#export RELEASE="noble"
 
 # workaround for restricted extras into script extra.sh below: uncomment appropriate one. PART 1 of 2
 ## UNITY
@@ -40,7 +39,7 @@ export desktop_name=UNITY
 #export desktop_name=STUDIO
 
 #input ISO file
-#export ISO_FILE="ubuntu-16.04.3-desktop-amd64.iso"
+#export ISO_FILE="ubuntu-24.04.2-desktop-amd64.iso"
 #
 # ISO download in Estonia
 # http://ftp.aso.ee/ubuntu-releases/
@@ -76,16 +75,15 @@ export ISO_FILE_NAME=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
 clear
 export ISO_FILE="$ISO_DIR/$ISO_FILE_NAME"
 export VERSION="$( echo $ISO_FILE_NAME | grep amd64 | cut -d'-' -f2)"
+if [[ "$VERSION" == *"desktop"* ]]; then
+  export VERSION="$( echo $ISO_FILE_NAME | grep amd64 | cut -d'-' -f1)-daily"
+  export RELEASE="$VERSION"
+fi
 
 if [ -z "$ISO_FILE_NAME" ]; then
   echo No input ISO file.
   exit
 fi
-
-
-
-
-
 
 #IMAGE NAME as it appears in ISO file (file <iso_image>)
 
@@ -95,44 +93,59 @@ elif [[ "$ISO_FILE" == *"x86"* ]]; then
   export ARCH="x86"
 fi
 
-
-#export IMAGE_NAME="$(ls $ISO_DIR | grep amd64 | cut -d'-' -f1)-estonian-remix-$(ls $ISO_DIR | grep amd64 | cut -d'-' -f2)-$desktop_name-64bit"
+#export IMAGE_NAME="$(ls $ISO_DIR | grep amd64 | cut -d'-' -f1)-ee-remix-$(ls $ISO_DIR | grep amd64 | cut -d'-' -f2)-$desktop_name-64bit"
 #echo "$IMAGE_NAME"
-export IMAGE_NAME="ubuntu-estonian-remix-${VERSION}-${ARCH}"
+export IMAGE_NAME="ubuntu-ee-remix-${VERSION}-${ARCH}"
 #export IMAGE_NAME="Ubuntu Estonian Remix 16.04.3 LTS 64-bit"
 #output ISO file
 export OUTPUT_FILE="${IMAGE_NAME}.iso"
 
 #visible name of the new disk in file explorer (max 32char)
-export NEWIMAGE_NAME="$(ls $ISO_DIR | grep amd64 | cut -d'-' -f1)-remix-$(ls $ISO_DIR | grep amd64 | cut -d'-' -f2)-lts-64bit"
+#export NEWIMAGE_NAME="$(ls $ISO_DIR | grep amd64 | cut -d'-' -f1)-remix-$(ls $ISO_DIR | grep amd64 | cut -d'-' -f2)-lts-64bit"
 #export NEWIMAGE_NAME="Ubuntu Remix 16.04.3 LTS 64-bit"
+export NEWIMAGE_NAME="$(lsb_release -d | cut -f2) \"Estonian Remix\" - Release $ARCH ($(date +%Y%m%d))"
+#export NEWIMAGE_NAME_SHORT="$(lsb_release -d | cut -f2) \"Estobuntu\""
+export NEWIMAGE_NAME_SHORT="$(lsb_release -d | cut -f2) EE-REMIX"
 echo "$NEWIMAGE_NAME"
+echo "$NEWIMAGE_NAME_SHORT"
  
+LOGFILE="$OUTPUT_DIR/$OUTPUT_FILE.log"
+#exec > "$LOGFILE" 2>&1
+#touch "$LOGFILE"
+exec &> >(tee $LOGFILE)
 
 
 
 
 
 
-
-if [[ "$VERSION" == *"14.04"* ]]; then
-  export RELEASE="trusty"
-elif [[ "$VERSION" == *"16.04"* ]]; then
-  export RELEASE="xenial"
-elif [[ "$VERSION" == *"16.10"* ]]; then
-  export RELEASE="yakkety"
-elif [[ "$VERSION" == *"17.04"* ]]; then
-  export RELEASE="zesty"
-elif [[ "$VERSION" == *"17.10"* ]]; then
-  export RELEASE="artful"
-elif [[ "$VERSION" == *"18.04"* ]]; then
- export RELEASE="bionic"
-else
-  echo "Check release manually and fix in script." && exit 1
+if [ -z "$RELEASE" ]; then
+  if [[ "$VERSION" == *"14.04"* ]]; then
+    export RELEASE="trusty"
+  elif [[ "$VERSION" == *"16.04"* ]]; then
+    export RELEASE="xenial"
+  elif [[ "$VERSION" == *"16.10"* ]]; then
+    export RELEASE="yakkety"
+  elif [[ "$VERSION" == *"17.04"* ]]; then
+    export RELEASE="zesty"
+  elif [[ "$VERSION" == *"17.10"* ]]; then
+    export RELEASE="artful"
+  elif [[ "$VERSION" == *"18.04"* ]]; then
+   export RELEASE="bionic"
+  elif [[ "$VERSION" == *"20.04"* ]]; then
+   export RELEASE="focal"
+  elif [[ "$VERSION" == *"22.04"* ]]; then
+   export RELEASE="jammy"
+  elif [[ "$VERSION" == *"24.04"* ]]; then
+   export RELEASE="noble"
+  elif [[ "$VERSION" == *"25.04"* ]]; then
+   export RELEASE="questing"
+  else
+    echo "Check release manually and fix in script." && exit 1
+  fi
 fi
 
-
-dialog --title "Ubuntu - Estonian CD remix creation" --msgbox "\nUsing following input ISO file: $ISO_FILE\n\noutput will be: $output_file" 22 76
+dialog --title "Ubuntu - Estonian CD remix creation" --msgbox "\nUsing following input ISO file: $ISO_FILE\n\noutput will be: $OUTPUT_FILE" 22 76
 
 #Confirm pacakge sets, that will be added
 cmd=(dialog --separate-output --checklist "Package sets to be installed:" 22 76 16)
@@ -142,7 +155,7 @@ for file in $(echo config/apt/added/*.conf); do
   first_line=$(head -n 1 "$file") 
   description=("${first_line[@]:1}")
   options+=("$description")
-  options+=("on")
+  options+=("off")
 done
 
 add_apt_sets=($("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty))
@@ -157,7 +170,7 @@ for file in $(echo config/apt/removed/*.conf); do
   first_line=$(head -n 1 "$file") 
   description=("${first_line[@]:1}")
   options+=("$description")
-  options+=("on")
+  options+=("off")
 done
 
 removed_apt_sets=($("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty))
@@ -167,7 +180,8 @@ echo "$removed_apt_sets"
 cmd=(dialog --separate-output --checklist "Select remix options:" 22 76 16)
 options=(ID "Install Estonian ID Software" on    # any option can be set to default to "on"
          EST "Filosoft speller for LibreOffice and Estonian langpacks" on
-         LO "Newest LibreOffice software" on
+         LANGUP "Current updates to Estonian translations" on
+         LO "Newest LibreOffice software" off
          REPLACE "Replace desktop system (remove Unity) - select in next step" off
 	 EXTRA "Video players, codecs, Iridium and Brave Browser, for kids etc" off)
 choices=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty)
@@ -183,6 +197,9 @@ do
             ;;
         EST)
             EST=1
+            ;;
+        LANGUP)
+            LANGUP=1
             ;;
         REPLACE)
             REPLACE=1
@@ -241,7 +258,6 @@ fi
 # Unpack ISO and prepare for modification
 #-------
 
-
 echo "removing old directories"
 rm -rf "$WORKING_DIR"
 echo Extracting image
@@ -254,11 +270,16 @@ mkdir -p $ISO_MOUNT_POINT $FS_MOUNT_POINT $EXTRACT_CD_DIR $WORKING_DIR
 
 mount -o loop "${ISO_FILE}" "$ISO_MOUNT_POINT"
 
-rsync --exclude=/casper/filesystem.squashfs -a $ISO_MOUNT_POINT/ $EXTRACT_CD_DIR
+rsync --exclude=/casper/minimal.squashfs -a $ISO_MOUNT_POINT/ $EXTRACT_CD_DIR
 echo Extracting liveFS
-mount -t squashfs -o loop "$ISO_MOUNT_POINT/casper/filesystem.squashfs" "$FS_MOUNT_POINT"
+mount -t squashfs -o loop "$ISO_MOUNT_POINT/casper/minimal.squashfs" "$FS_MOUNT_POINT"
 
 cp -a "$FS_MOUNT_POINT/" "$EDIT_DIR"
+
+#unsquashfs $ISO_MOUNT_POINT/casper/minimal.squashfs
+#unsquashfs $ISO_MOUNT_POINT/casper/minimal.standard.squashfs
+#unsquashfs $ISO_MOUNT_POINT/casper/minimal.standard.live.squashfs
+#mv squashfs-root $FS_MOUNT_POINT
 
 # NOTE: LiveCDCustomization wiki page uses another method nowadays
 # sudo unsquashfs mnt/casper/filesystem.squashfs
@@ -296,17 +317,18 @@ echo "$removed_apt_packages"
 # Purge selected packages
 # Done one by one because apt purge fails if any package is missing.
 for package in ${removed_apt_packages[@]}; do
-  chroot "$EDIT_DIR" apt-get purge --yes "$package"
+  chroot "$EDIT_DIR" apt purge --yes "$package"
 done
 
 #Install selected packages
 echo $add_apt_packages
-chroot "$EDIT_DIR" apt-get install --yes ${add_apt_packages[@]}
+chroot "$EDIT_DIR" apt install --yes ${add_apt_packages[@]}
+
 # Install included deb files
-# cp config/deb/* "$EDIT_DIR/tmp" || true
-# for deb in $(echo config/deb/*.deb ); do
-#   chroot "$EDIT_DIR" dpkg --install "/tmp/$(basename $deb)"
-# done
+cp config/deb/* "$EDIT_DIR/tmp" || true
+for deb in $(echo config/deb/*.deb ); do
+  chroot "$EDIT_DIR" apt install --yes "/tmp/$(basename $deb)"
+done
 # exit 42
 
 
@@ -347,6 +369,12 @@ fi
 # ./tmp/caja-qdigidoc.sh: line 4: edit/tmp/caja-qdigidoc.py: No such file or directory
 # cp: cannot stat 'edit/tmp/caja-qdigidoc.py': No such file or directory
 
+if [[ $LANGUP ]]
+then
+  cp config/lang/* "$EDIT_DIR/usr/share/locale/et/LC_MESSAGES"
+fi
+
+
 chroot "$EDIT_DIR" ./tmp/cleanup.sh
 
 #---------
@@ -366,29 +394,48 @@ chroot "$EDIT_DIR" ./tmp/cleanup.sh
 #cp -af gfxboot-theme-ubuntu-0.20.1/boot/* extract-cd/isolinux/
 #sed -i "/default_keymap = {/a \'et\': \'et\'," edit/usr/lib/ubiquity/ubiquity/misc.py
 
+mkdir -p "$EDIT_DIR/usr/share/locale/et/LC_MESSAGES"
+cp -a config/misc/et.mo "$EDIT_DIR/usr/share/locale/et/LC_MESSAGES"
 
 # Re-creation of "manifest" file
-chmod +w "$EXTRACT_CD_DIR/casper/filesystem.manifest"
-chroot "$EDIT_DIR" dpkg-query -W --showformat='${Package} ${Version}\n' > "$EXTRACT_CD_DIR/casper/filesystem.manifest"
+chmod +w "$EXTRACT_CD_DIR/casper/minimal.manifest"
+chroot "$EDIT_DIR" dpkg-query -W --showformat='${Package} ${Version}\n' > "$EXTRACT_CD_DIR/casper/minimal.manifest"
 #
 # Pack the filesystem
-rm -f "$EXTRACT_CD_DIR/casper/filesystem.squashfs"
-mksquashfs "$EDIT_DIR" "$EXTRACT_CD_DIR/casper/filesystem.squashfs"
+rm -f "$EXTRACT_CD_DIR/casper/minimal.squashfs"
+mksquashfs "$EDIT_DIR" "$EXTRACT_CD_DIR/casper/minimal.squashfs"
 # Create the disk image itself
-sed -i -e "s/$IMAGE_NAME/$NEWIMAGE_NAME/" "$EXTRACT_CD_DIR/README.diskdefines"
-sed -i -e "s/$IMAGE_NAME/$NEWIMAGE_NAME/" "$EXTRACT_CD_DIR/.disk/info"
+#sed -i -e "s/$IMAGE_NAME/$NEWIMAGE_NAME/" "$EXTRACT_CD_DIR/README.diskdefines"
+#sed -i -e "s/$IMAGE_NAME/$NEWIMAGE_NAME/" "$EXTRACT_CD_DIR/.disk/info"
+echo "$NEWIMAGE_NAME" > "$EXTRACT_CD_DIR/.disk/info"
+
+mkdir -p "$EXTRACT_CD_DIR/boot/grub/locale"
+cp -a config/misc/et.mo "$EXTRACT_CD_DIR/boot/grub/locale/"
 
 cd "$EXTRACT_CD_DIR"
+
+mkdir -p boot/grub/fonts
+
+cp -a /boot/grub/fonts/unicode.pf2 boot/grub/fonts/
+#cp -a /boot/grub/fonts/unicode.pf2 boot/grub/
+
 # Localizing the UEFI boot
-sed -i '6i    loadfont /boot/grub/fonts/unicode.pf2' boot/grub/grub.cfg
+#sed -i '6i    loadfont /boot/grub/fonts/unicode.pf2' boot/grub/grub.cfg
 sed -i '7i    set locale_dir=$prefix/locale' boot/grub/grub.cfg
-#sed -i '8i    set lang=et_EE' boot/grub/grub.cfg
+sed -i '8i    set lang=et_EE' boot/grub/grub.cfg
 sed -i '9i    insmod gettext' boot/grub/grub.cfg
+#sed -i 's%splash%splash locale=et_EE%' boot/grub/grub.cfg
 #sed -i 's%splash%splash debian-installer/locale=et_EE keyboard-configuration/layoutcode=et console-setup/layoutcode=et%' boot/grub/grub.cfg
-sed -i 's/Try Ubuntu without installing/Proovi ilma paigaldamiseta/' boot/grub/grub.cfg
-sed -i 's/Install Ubuntu/Paigalda Ubuntu/' boot/grub/grub.cfg
+sed -i 's/Try Ubuntu without installing/Proovi ilma paigaldamata/' boot/grub/grub.cfg
+sed -i 's/Try or Install Ubuntu/Paigalda või proovi Ubuntut/' boot/grub/grub.cfg
+#sed -i 's/Try or Install Ubuntu/Paigalda või proovi Ubuntut/' boot/grub/loopback.cfg
 sed -i 's/OEM install (for manufacturers)/OEM-paigaldus (arvutitootjatele)/' boot/grub/grub.cfg
 sed -i 's/Check disc for defects/Kontrolli kettavigu/' boot/grub/grub.cfg
+sed -i 's/Ubuntu (safe graphics)/Ubuntu (lollikindel graafika)/' boot/grub/grub.cfg
+#sed -i 's/Ubuntu (safe graphics)/Ubuntu (lollikindel graafika)/' boot/grub/loopback.cfg
+sed -i 's/UEFI Firmware Settings/UEFI püsivara seaded/' boot/grub/grub.cfg
+sed -i 's/Boot from next volume/Algkäivitus järgmiselt kettalt/' boot/grub/grub.cfg
+sed -i 's/Test memory/Mälu testimine/' boot/grub/grub.cfg
 
 #This is not a good solution, it mixes keyboard setting completely - set language form install splash
 #sed -i 's%splash%splash debian-installer/locale=et_EE.UTF-8 keyboard-configuration/layoutcode=et console-setup/layoutcode=et%' boot/grub/loopback.cfg
@@ -397,12 +444,6 @@ sed -i 's/Check disc for defects/Kontrolli kettavigu/' boot/grub/grub.cfg
 #sed -i 's/Try Ubuntu without installing/Proovi ilma paigaldamiseta/' isolinux/txt.cfg
 #sed -i 's/Install Ubuntu/Paigalda Ubuntu/' boot/grub/loopback.cfg
 #sed -i 's/Install Ubuntu/Paigalda Ubuntu/' isolinux/txt.cfg
-
-mkdir -p boot/grub/locale/
-mkdir -p boot/grub/fonts/
-
-#cp -a /boot/grub/locale/et.mo boot/grub/locale/
-cp -a /boot/grub/fonts/unicode.pf2 boot/grub/fonts/
 
 #help users with selecting some Estonian locales
 echo "d-i debian-installer/locale string et_EE.UTF-8" >> preseed/ubuntu.seed
@@ -416,23 +457,40 @@ rm -f md5sum.txt
 sed -i -e '/isolinux/d' md5sum.txt
 # Different volume name than the IMAGE_NAME above.$output_file_name.$output_file_extension
 # 16.04 LTS$output_file_name.$output_file_extension
-genisoimage -r -V "$NEWIMAGE_NAME" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -o ${OUTPUT_DIR}/${OUTPUT_FILE} .
+#genisoimage -r -V "$NEWIMAGE_NAME" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -o ${OUTPUT_DIR}/${OUTPUT_FILE} .
 
-cd ..
-isohybrid --uefi "${OUTPUT_DIR}/${OUTPUT_FILE}"
+#cd ..
+#isohybrid --uefi "${OUTPUT_DIR}/${OUTPUT_FILE}"
+
+# 24.04 LTS
+ORIG="$ISO_FILE"
+MBR="$WORKING_DIR/iso_image.mbr"
+EFI="$WORKING_DIR/iso_image.efi"
+# Extract the MBR template
+dd if="$ORIG" bs=1 count=446 of="$MBR"
+# Extract EFI partition image
+SKIP=$(/sbin/fdisk -l "$ORIG" | fgrep '.iso2 ' | awk '{print $2}')
+SIZE=$(/sbin/fdisk -l "$ORIG" | fgrep '.iso2 ' | awk '{print $4}')
+dd if="$ORIG" bs=512 skip="$SKIP" count="$SIZE" of="$EFI"
+
+mkdir -p "$OUTPUT_DIR"
+
+# One can check original options with xorriso -indev ubuntu-22.04-desktop-amd64.iso -report_el_torito as_mkisofs
+xorriso -as mkisofs -r -V "$NEWIMAGE_NAME_SHORT" -J -joliet-long -l -iso-level 3 -partition_offset 16 --grub2-mbr "$MBR" --mbr-force-bootable -append_partition 2 0xEF "$EFI" -appended_part_as_gpt -c /boot.catalog -b /boot/grub/i386-pc/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info -eltorito-alt-boot -e '--interval:appended_partition_2:all::' -no-emul-boot -o "$OUTPUT_DIR/$OUTPUT_FILE" "$EXTRACT_CD_DIR"
 
 # Clean up working directory
-umount "$FS_MOUNT_POINT" || true
-umount "$ISO_MOUNT_POINT" || true
-umount -l "$EDIT_DIR/sys" || true
-umount -l "$EDIT_DIR/proc" || true
-umount -l "$EDIT_DIR/dev" || true
-rm -rf "$EDIT_DIR"/ "$EXTRACT_CD_DIR"/ mnt/ squashfs/
+#umount "$FS_MOUNT_POINT" || true
+#umount "$ISO_MOUNT_POINT" || true
+#umount -l "$EDIT_DIR/sys" || true
+#umount -l "$EDIT_DIR/proc" || true
+#umount -l "$EDIT_DIR/dev" || true
+#rm -rf "$EDIT_DIR"/ "$EXTRACT_CD_DIR"/ mnt/ squashfs/
 
 # Generate SHA256SUM checksum
 cd $OUTPUT_DIR
-sha256sum $OUTPUT_FILE > $IMAGE_NAME.sha256
-cd -
+sha256sum $OUTPUT_FILE > $OUTPUT_FILE.sha256
+zsyncmake -u http://linux.infoaed.ee/$OUTPUT_FILE $OUTPUT_FILE
+cd ..
 
 echo
 echo Generated ISO file:

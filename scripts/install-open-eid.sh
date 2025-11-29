@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # This script configures .deb based Linux repositories
 # License: public domain
 # Script https://github.com/open-eid/linux-installer
@@ -7,32 +7,6 @@ set -e
 
 # Key used for signing releases
 RIA_KEY="""-----BEGIN PGP PUBLIC KEY BLOCK-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-mQGiBEzGeRYRBAD6h9dnYIjEWCTFdnWGLeXXTHArs4uRcN74UjrmlH230lvjjdjb
-9c46k3VJZimjTyWTpe9X4lEiOqBmQ08OAG8hOihh/ro2FwgPA6lvW98dr5jiVW/G
-c45eE9tWo5BigkDV8tqP5SA206644gRMLo5AjPWyY/CnjPVhQHZOzEDCLwCgxW5u
-394CNteTI5dJ87fGNXxKE+UD/3KlW1CdSHLSS+V/FuW0Z2xMXz1Cvgu1FfRxGYTy
-dCR4/YRCQ4HoOk54e8NnVRQj+b6JhA65Dg7ghHpt0IAmx7b7LGWOgIPJTCDZw9b3
-s/RII2uWLsIttrONks+SZfBnS+f7eQcGdvGnsDWu2vNnzbkShK6qjDcYW+LUvJxF
-+acvA/47ar0MsH503SFk7zJ857L2rx/YuJcPS0v8eHwnBOP/QoQtshPqrArSFYUM
-fyikSPqrdFA4zSBqOoUgGMbJ0xn1/GsgQYcmE6KFOb34RLZtcmE79Yq+TXLmG/L1
-eEEeBgik5jjcj1KqUMlEgJupiNbmlaBFfSklIhTRCRShdblzzbQpUklBIFNvZnR3
-YXJlIFNpZ25pbmcgS2V5IDxzaWduaW5nQHJpYS5lZT6IYAQTEQIAIAUCTMZ5FgIb
-AwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJELM5s21ZIHPU/hcAnRYC9kn2ADv6
-3oUBMQaQd5n1+oOyAJ4v62yQ58x8QHo0kLcKvIuAbD9jDrkBDQRMxnkWEAQAkw4l
-St3UftG9Lo6gP1aOiumcuKadramAvRNywJZ5wvKeEtWqQG6+Ef9mifApoQtA2yEp
-eTdTa7qAIyujdSIjPjxeXrSWviznLK3Thm4ylYurA3Mzom4aQM0N25RVxiQelEk1
-e7tmXTgYmUcwbWkIQmkdMhHvZnPy6AXEHIQZgw8AAwUD/05ULVRazIc553F/Qghm
-K1MIOUQpBjPYBFvr1MycxKIgPxDjy+e5bsPtcgc5SlXXjlKAqSYrs42Yz8o3stfv
-X0qQv56PLCmmqKvKRrR09+ra/8oaQMm4DDJHzUm8SDy5A53rr/7QoUM+R9bc8QgO
-dE4ZELZL8Ua3zgIiJ9lvTOrtiEkEGBECAAkFAkzGeRYCGwwACgkQszmzbVkgc9RQ
-bACfeSihUW1fWwHRDkQ8QphxpaaM0SsAn1+nvmIQRuGp/NGICOtsLA544Yz2
-=zJUy
------END PGP PUBLIC KEY BLOCK-----
-"""
-
-RIA_KEYV2="""-----BEGIN PGP PUBLIC KEY BLOCK-----
 Comment: GPGTools - https://gpgtools.org
 
 mQINBFcrMk4BEADCimHCTTCsBbUL+MtrRGNKEo/ccdjv0hArPqn1yt/7w9BFH17f
@@ -88,18 +62,15 @@ K2czbpReKw==
 
 add_key() {
   # keystring=`echo "$RIA_KEY" | gpg` # XXX: can't be automated, gpg always creates files on disk
-  keystring="0x592073D4 'RIA Software Signing Key <signing@ria.ee>'"
-  echo "Adding key to trusted key set (apt-key add)"
-  echo "$keystring"
-  echo "$RIA_KEY" | sudo apt-key add -
   keystring="0xC6C83D68 'RIA Software Signing Key <signing@ria.ee>'"
+  echo "Adding key to trusted key set"
   echo "$keystring"
-  echo "$RIA_KEYV2" | sudo apt-key add -
+  echo "$RIA_KEY" | gpg --dearmor | sudo tee /usr/share/keyrings/ria-repository.gpg > /dev/null
 }
 
 test_sudo() {
   if ! command -v sudo>/dev/null; then
-     make_fail "You must have sudo and be in sudo group\nAs root do: apt-get install sudo && adduser $USER sudo"
+     make_fail "You must have sudo and be in sudo group\nAs root do: apt install sudo && adduser $USER sudo"
   fi
 }
 
@@ -114,17 +85,17 @@ test_root() {
 add_repository() {
   umask 0022
   echo "Adding RIA repository to APT sources list (/etc/apt/sources.list.d/ria-repository.list)"
-  echo "deb https://installer.id.ee/media/ubuntu/ $1 main" | sudo tee /etc/apt/sources.list.d/ria-repository.list
+  echo "deb [signed-by=/usr/share/keyrings/ria-repository.gpg] https://installer.id.ee/media/ubuntu/ $1 main" | sudo tee /etc/apt/sources.list.d/ria-repository.list
 }
 
 make_install() {
-  echo "Installing software (apt-get update && apt-get install  open-eid)"
-  sudo apt-get update
-  sudo apt-get install -y opensc "$1"
+  echo "Installing software (apt update && apt install open-eid)"
+  sudo apt update
+  sudo apt install -y opensc "$@"
 }
 
 make_fail() {
-  echo -e "$1"
+  echo "$1"
   exit 3
 }
 
@@ -142,76 +113,105 @@ if ! command -v lsb_release>/dev/null; then
 fi
 
 # we use sudo
-# test_root
+#test_root
 test_sudo
 
-# 14.04 trusty
-# 16.04 xenial
-# 17.10 artful
-# 18.04 bionic
+# version   name    LTS   supported until
+# 20.04     focal   LTS   2025-04
+# 22.04     jammy   LTS   2027-04
+# 24.04     noble   LTS   2029-04
+# 24.10     oracular -    2025-07
+LATEST_SUPPORTED_UBUNTU_CODENAME='oracular'
 
 # check if Debian or Ubuntu
-distro=$(lsb_release -is)
+distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 release=$(lsb_release -rs)
 codename=$(lsb_release -cs)
-instpackage="open-eid"
 
 case $distro in
-   Debian)
+   debian)
       make_warn "Debian is not officially supported"
-      echo "### Installing possibly missing https support for APT (apt-get install apt-transport-https)"
+      echo "### Installing possibly missing https support for APT (apt install apt-transport-https)"
       # Debian lacks https support for apt, by default
-      sudo apt-get install -y apt-transport-https
+      sudo apt install apt-transport-https
       case "$codename" in
-        wheezy)
-          add_repository trusty
+         bullseye)
+          make_warn "Debian $codename is not officially supported"
+          make_warn "Installing from ubuntu-focal repository"
+          add_repository focal
           ;;
+         bookworm)
+	 	      make_warn "Debian $codename is not officially supported"
+	 	      make_warn "Installing from ubuntu-jammy repository"
+	 	      add_repository jammy
+	 	      ;;
         *)
           make_fail "Debian $codename is not officially supported"
           ;;
       esac
       ;;
-   Ubuntu)
+   ubuntu|neon|zorin)
+      case $distro in
+         neon) make_warn "Neon is not officially supported; assuming that it is equivalent to Ubuntu" ;;
+         *) ;;
+      esac
       case $codename in
-        utopic|vivid|wily)
+        utopic|vivid|wily|trusty|artful|cosmic|disco|xenial|eoan|groovy|hirsute|impish|bionic|zorin|kinetic|lunar|mantic)
           make_fail "Ubuntu $codename is not officially supported"
           ;;
-        *)
+        focal|jammy|noble|oracular)
           add_repository $codename
           ;;
+        *)
+          make_warn "Ubuntu $codename is not officially supported"
+          make_warn "Trying to install package for Ubuntu ${LATEST_SUPPORTED_UBUNTU_CODENAME}"
+          add_repository ${LATEST_SUPPORTED_UBUNTU_CODENAME}
+          ;;
       esac
       ;;
-   LinuxMint)
+   linuxmint)
       case $release in
-        17*)
-          make_warn "LinuxMint 17 is not officially supported"
-          add_repository trusty
+        22*)
+          make_warn "Linux Mint 22 is not officially supported"
+          add_repository noble
           ;;
-        18*)
-          make_warn "LinuxMint 18 is not officially supported"
-          add_repository xenial
+        21*)
+          make_warn "Linux Mint 21 is not officially supported"
+          add_repository jammy
           ;;
-        19*)
-          make_warn "LinuxMint 19 is not officially supported"
-          add_repository bionic
+        20*)
+          make_warn "Linux Mint 20 is not officially supported"
+          add_repository focal
           ;;
         *)
-          make_fail "LinuxMint $release is not officially supported"
+          make_fail "Linux Mint $release is not officially supported"
           ;;
       esac
       ;;
-   elementary*OS|elementary)
+   elementary*os|elementary)
       case $release in
-        0.3*)
-          make_warn "Elementary OS 0.3 is not officially supported"
-          add_repository trusty
-          ;;
-        0.4*)
-          make_warn "Elementary OS 0.4 is not officially supported"
-          add_repository xenial
+        7*)
+          make_warn "Elementary OS 7 is not officially supported"
+          add_repository jammy
           ;;
         *)
           make_fail "Elementary OS $release is not officially supported"
+          ;;
+      esac
+      ;;
+   pop)
+      case $codename in
+        artful|cosmic|disco|eoan|bionic)
+          make_fail "Pop!_OS $codename is not officially supported"
+          ;;
+        focal|jammy)
+          make_warn "Pop!_OS $codename is not officially supported"
+          add_repository $codename
+          ;;
+        *)
+          make_warn "Pop!_OS $codename is not officially supported"
+          make_warn "Trying to install package for Pop!_OS ${LATEST_SUPPORTED_UBUNTU_CODENAME}"
+          add_repository ${LATEST_SUPPORTED_UBUNTU_CODENAME}
           ;;
       esac
       ;;
@@ -221,7 +221,14 @@ case $distro in
 esac
 
 add_key
-make_install $instpackage
-# Configure Chrome PKCS11 driver for current user, /etc/xdg/autstart/ will init other users on next logon
-/usr/bin/esteid-update-nssdb
-echo -e "\n\nThank you for using Estonian ID card!"
+make_install open-eid
+
+# Configure Chrome/Firefox PKCS11 driver for current user, /etc/xdg/autstart/ will init other users on next logon
+/usr/bin/pkcs11-register
+echo 
+echo "Thank you for using Estonian ID card!"
+#read -p "Would you like to read instructions on how to configure browsers for using ID-card? (Y/n): " instructions
+#case $instructions in
+#    [Yy]*|"" ) xdg-open "https://www.id.ee/en/article/ubuntu-id-software-installation-updating-and-removal/#removing-mozilla-firefox";;
+#    * ) ;;
+#esac
